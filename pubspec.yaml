@@ -1,0 +1,37 @@
+name: weather_app
+description: "App to display weather information"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  go_router: ^14.2.7
+  flutter_bloc: ^8.1.6
+  get_it: ^7.7.0
+  dio: ^5.7.0
+  intl: ^0.19.0
+  toggle_switch: ^2.3.0
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/img/
+
+  fonts:
+    - family: Normal
+      fonts:
+        - asset: assets/fonts/AvenirN.otf
+    - family: Bold
+      fonts:
+        - asset: assets/fonts/AvenirB.otf
+          weight: 900
