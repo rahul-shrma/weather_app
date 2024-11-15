@@ -12,14 +12,24 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = sl<HomeCubit>();
-    cubit
-      ..init()
-      ..getWeatherForecast();
+    cubit.init();
     return LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-      return BlocBuilder<HomeCubit, HomeState>(
+      return BlocConsumer<HomeCubit, HomeState>(
           bloc: cubit,
+          listener: (context, state) {
+            if(state.locationStatus == 'permission_granted') {
+              cubit.getLocationDetails();
+            } else if(state.locationStatus == 'success') {
+              if(state.currentPosition != null) {
+                cubit.getWeatherForecast(cityName: "${state.currentPosition!.latitude},${state.currentPosition!.longitude}");
+              } else {
+                cubit.getWeatherForecast(cityName: "Chandigarh");
+              }
+            }
+          },
           builder: (context, state) {
+            var locationStatus = cubit.locationStatusLabel();
             return Scaffold(
               appBar: AppBar(
                 backgroundColor: Color(0xFF95D6FB),
@@ -107,6 +117,16 @@ class HomeScreen extends StatelessWidget {
                           SizedBox(
                             height: constraints.maxWidth > 600 ? 20 : 18,
                           ),
+                          (locationStatus.$1 != null)
+                              ? Text(
+                                  locationStatus.$1!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: 'Bold',
+                                    color: locationStatus.$2,
+                                  ),
+                                )
+                              : SizedBox(),
                           Text(
                             state.weatherResponse?.location?.getFullName() ??
                                 state.cityNameController.text.trim(),
@@ -119,10 +139,18 @@ class HomeScreen extends StatelessWidget {
                           SizedBox(
                             height: constraints.maxWidth > 600 ? 20 : 18,
                           ),
-                          state.weatherResponseError == null
-                              ? weatherInfoWidget(cubit, state,
-                                  state.weatherResponse, constraints)
-                              : weatherInfoErrorWidget(cubit, state)
+                          locationStatus.$1 != null
+                              ? Center(
+                                  child: SizedBox(
+                                    width: 30,
+                                    height: 30,
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                )
+                              : state.weatherResponseError == null
+                                  ? weatherInfoWidget(cubit, state,
+                                      state.weatherResponse, constraints)
+                                  : weatherInfoErrorWidget(cubit, state)
                         ],
                       ),
                     ),
@@ -139,203 +167,213 @@ class HomeScreen extends StatelessWidget {
 
   Widget weatherInfoWidget(HomeCubit cubit, HomeState state,
       WeatherResponse? weatherResponse, BoxConstraints constraints) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                    text: 'Temperature: ',
+    return state.loadingWeatherData
+        ? Center(
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                          text: 'Temperature: ',
+                          children: [
+                            TextSpan(
+                              text: '${weatherResponse?.current?.tempC}°C',
+                              style: TextStyle(
+                                fontFamily: 'Normal',
+                                fontSize: 14,
+                                color: cubit.getTextColor(),
+                              ),
+                            ),
+                          ],
+                          style: TextStyle(
+                              fontFamily: 'Bold',
+                              color: cubit.getTextColor(),
+                              fontSize: 13)),
+                    ),
+                  ),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                          text: 'Humidity: ',
+                          children: [
+                            TextSpan(
+                              text: '${weatherResponse?.current?.humidity}',
+                              style: TextStyle(
+                                fontFamily: 'Normal',
+                                fontSize: 14,
+                                color: cubit.getTextColor(),
+                              ),
+                            ),
+                          ],
+                          style: TextStyle(
+                              fontFamily: 'Bold',
+                              color: cubit.getTextColor(),
+                              fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                height: constraints.maxWidth > 600 ? 20 : 18,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                          text: 'Wind Speed (KPH): ',
+                          children: [
+                            TextSpan(
+                              text: '${weatherResponse?.current?.windKph}',
+                              style: TextStyle(
+                                fontFamily: 'Normal',
+                                fontSize: 14,
+                                color: cubit.getTextColor(),
+                              ),
+                            ),
+                          ],
+                          style: TextStyle(
+                              fontFamily: 'Bold',
+                              color: cubit.getTextColor(),
+                              fontSize: 13)),
+                    ),
+                  ),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                          text: 'Condition: ',
+                          children: [
+                            TextSpan(
+                              text:
+                                  '${weatherResponse?.current?.condition.text}',
+                              style: TextStyle(
+                                fontFamily: 'Normal',
+                                fontSize: 14,
+                                color: cubit.getTextColor(),
+                              ),
+                            ),
+                          ],
+                          style: TextStyle(
+                              fontFamily: 'Bold',
+                              color: cubit.getTextColor(),
+                              fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                height: constraints.maxWidth > 600 ? 50 : 30,
+              ),
+              Text(
+                '${weatherResponse?.location?.name ?? state.cityNameController.text.trim()}\'s forecast for next 5 days',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Bold',
+                  color: cubit.getTextColor(),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(
+                height: 5,
+              ),
+              ListView.builder(
+                itemCount:
+                    (weatherResponse?.forecast?.forecastday?.length ?? 0),
+                itemBuilder: (context, i) {
+                  return Row(
                     children: [
-                      TextSpan(
-                        text: '${weatherResponse?.current?.tempC}°C',
-                        style: TextStyle(
-                          fontFamily: 'Normal',
-                          fontSize: 14,
-                          color: cubit.getTextColor(),
+                      Container(
+                        decoration: BoxDecoration(
+                            color: Colors.blue, shape: BoxShape.circle),
+                        padding: EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              dateFormatter(
+                                weatherResponse!.forecast!.forecastday![i].date,
+                                'dd',
+                              ),
+                              style: TextStyle(
+                                fontFamily: 'Bold',
+                                fontSize: 15,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              dateFormatter(
+                                weatherResponse.forecast!.forecastday![i].date,
+                                'MMM',
+                              ),
+                              style: TextStyle(
+                                fontFamily: 'Bold',
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                    style: TextStyle(
-                        fontFamily: 'Bold',
-                        color: cubit.getTextColor(),
-                        fontSize: 13)),
-              ),
-            ),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                    text: 'Humidity: ',
-                    children: [
-                      TextSpan(
-                        text: '${weatherResponse?.current?.humidity}',
-                        style: TextStyle(
-                          fontFamily: 'Normal',
-                          fontSize: 14,
-                          color: cubit.getTextColor(),
-                        ),
+                      SizedBox(
+                        width: 30,
+                      ),
+                      RichText(
+                        text: TextSpan(
+                            text: 'Min: ',
+                            children: [
+                              TextSpan(
+                                text:
+                                    '${weatherResponse.forecast!.forecastday![i].day?.mintempC}°C',
+                                style: TextStyle(
+                                  fontFamily: 'Normal',
+                                  fontSize: 14,
+                                  color: cubit.getTextColor(),
+                                ),
+                              ),
+                              TextSpan(
+                                text: '   -   Max: ',
+                                style: TextStyle(
+                                  fontFamily: 'Bold',
+                                  fontSize: 13,
+                                  color: cubit.getTextColor(),
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    '${weatherResponse.forecast!.forecastday![i].day?.maxtempC}°C',
+                                style: TextStyle(
+                                  fontFamily: 'Normal',
+                                  fontSize: 14,
+                                  color: cubit.getTextColor(),
+                                ),
+                              ),
+                            ],
+                            style: TextStyle(
+                                fontFamily: 'Bold',
+                                color: cubit.getTextColor(),
+                                fontSize: 13)),
                       ),
                     ],
-                    style: TextStyle(
-                        fontFamily: 'Bold',
-                        color: cubit.getTextColor(),
-                        fontSize: 13)),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
-          height: constraints.maxWidth > 600 ? 20 : 18,
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                    text: 'Wind Speed (KPH): ',
-                    children: [
-                      TextSpan(
-                        text: '${weatherResponse?.current?.windKph}',
-                        style: TextStyle(
-                          fontFamily: 'Normal',
-                          fontSize: 14,
-                          color: cubit.getTextColor(),
-                        ),
-                      ),
-                    ],
-                    style: TextStyle(
-                        fontFamily: 'Bold',
-                        color: cubit.getTextColor(),
-                        fontSize: 13)),
-              ),
-            ),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                    text: 'Condition: ',
-                    children: [
-                      TextSpan(
-                        text: '${weatherResponse?.current?.condition.text}',
-                        style: TextStyle(
-                          fontFamily: 'Normal',
-                          fontSize: 14,
-                          color: cubit.getTextColor(),
-                        ),
-                      ),
-                    ],
-                    style: TextStyle(
-                        fontFamily: 'Bold',
-                        color: cubit.getTextColor(),
-                        fontSize: 13)),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
-          height: constraints.maxWidth > 600 ? 50 : 30,
-        ),
-        Text(
-          '${weatherResponse?.location?.name ?? state.cityNameController.text.trim()}\'s forecast for next 5 days',
-          style: TextStyle(
-            fontSize: 16,
-            fontFamily: 'Bold',
-            color: cubit.getTextColor(),
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        SizedBox(
-          height: 5,
-        ),
-        ListView.builder(
-          itemCount: (weatherResponse?.forecast?.forecastday?.length ?? 0),
-          itemBuilder: (context, i) {
-            return Row(
-              children: [
-                Container(
-                  decoration:
-                      BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                  padding: EdgeInsets.all(12),
-                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        dateFormatter(
-                          weatherResponse!.forecast!.forecastday![i].date,
-                          'dd',
-                        ),
-                        style: TextStyle(
-                          fontFamily: 'Bold',
-                          fontSize: 15,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        dateFormatter(
-                          weatherResponse.forecast!.forecastday![i].date,
-                          'MMM',
-                        ),
-                        style: TextStyle(
-                          fontFamily: 'Bold',
-                          fontSize: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 30,
-                ),
-                RichText(
-                  text: TextSpan(
-                      text: 'Min: ',
-                      children: [
-                        TextSpan(
-                          text:
-                              '${weatherResponse.forecast!.forecastday![i].day?.mintempC}°C',
-                          style: TextStyle(
-                            fontFamily: 'Normal',
-                            fontSize: 14,
-                            color: cubit.getTextColor(),
-                          ),
-                        ),
-                        TextSpan(
-                          text: '   -   Max: ',
-                          style: TextStyle(
-                            fontFamily: 'Bold',
-                            fontSize: 13,
-                            color: cubit.getTextColor(),
-                          ),
-                        ),
-                        TextSpan(
-                          text:
-                              '${weatherResponse.forecast!.forecastday![i].day?.maxtempC}°C',
-                          style: TextStyle(
-                            fontFamily: 'Normal',
-                            fontSize: 14,
-                            color: cubit.getTextColor(),
-                          ),
-                        ),
-                      ],
-                      style: TextStyle(
-                          fontFamily: 'Bold',
-                          color: cubit.getTextColor(),
-                          fontSize: 13)),
-                ),
-              ],
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.start,
-            );
-          },
-          shrinkWrap: true,
-        ),
-      ],
-    );
+                    mainAxisAlignment: MainAxisAlignment.start,
+                  );
+                },
+                shrinkWrap: true,
+              ),
+            ],
+          );
   }
 
   Widget weatherInfoErrorWidget(HomeCubit cubit, HomeState state) {
