@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class SystemSettings {
   static Future<void> lockRotation() {
     return SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
+      if (kIsWeb) ...{
+        DeviceOrientation.landscapeLeft,
+      } else ...{
+        DeviceOrientation.portraitUp,
+      }
     ]);
   }
 

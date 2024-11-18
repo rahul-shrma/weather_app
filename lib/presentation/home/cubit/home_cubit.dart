@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_app/data/model/weather_response.dart';
 import 'package:weather_app/domain/usecases/get_weather_usecase.dart';
@@ -13,6 +13,11 @@ class HomeCubit extends Cubit<HomeState> {
   final GetWeatherUsecase getWeatherUsecase;
 
   final deBouncer = Debouncer(milliseconds: 300);
+
+  late Location location;
+  late bool _serviceEnabled;
+  late PermissionStatus _permissionGranted;
+  LocationData? _locationData;
 
   Color getBackgroundColor() {
     if (state.theme == 0) {
@@ -35,49 +40,49 @@ class HomeCubit extends Cubit<HomeState> {
     state.locationStatus = 'checking_permission';
     emit(state.copy(state));
 
-    bool serviceEnabled;
-    LocationPermission permission;
+    location = Location();
 
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
+    _serviceEnabled = await location.serviceEnabled();
+    if (!_serviceEnabled) {
       state.locationStatus = 'disabled';
       emit(state.copy(state));
-      return;
-    }
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        state.locationStatus = 'permission_denied';
+      _serviceEnabled = await location.requestService();
+      if (!_serviceEnabled) {
+        state.locationStatus = 'disabled';
         emit(state.copy(state));
         return;
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      state.locationStatus = 'permission_denied_forever';
-      emit(state.copy(state));
-      return Future.error(
-          'Location permissions are permanently denied, we cannot request permissions.');
+    _permissionGranted = await location.hasPermission();
+    if (_permissionGranted == PermissionStatus.denied) {
+      _permissionGranted = await location.requestPermission();
+      if (_permissionGranted != PermissionStatus.granted) {
+        state.locationStatus = 'permission_denied';
+        emit(state.copy(state));
+        return;
+      }
     }
-
     state.locationStatus = 'permission_granted';
     emit(state.copy(state));
   }
 
   Future<void> getLocationDetails() async {
-    final LocationSettings locationSettings = WebSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 100,
-      maximumAge: Duration(minutes: 5),
-    );
-    Position position =
-        await Geolocator.getCurrentPosition(locationSettings: locationSettings);
-    state.currentPosition = position;
-    state.locationStatus = 'success';
-    emit(state.copy(state));
+    location.onLocationChanged.listen((LocationData currentLocation) {
+      if (state.currentPosition == null) {
+        state.currentPosition = currentLocation;
+        state.locationStatus = 'success';
+        emit(state.copy(state));
+      }
+    });
+
+    _locationData = await location.getLocation();
+    if (_locationData != null) {
+      state.currentPosition = _locationData;
+      state.locationStatus = 'success';
+      emit(state.copy(state));
+    }
   }
 
   Future<void> getWeatherForecast({String cityName = 'Chandigarh'}) async {
@@ -133,12 +138,15 @@ class HomeCubit extends Cubit<HomeState> {
     if (state.locationStatus == 'permission_granted') {
       return (
         'We have received location permission. We are fetching location details.',
-        Colors.black
+        getTextColor()
       );
     } else if (state.locationStatus == 'checking_permission') {
-      return ('We are checking for location permission.', Colors.black);
+      return ('We are checking for location permission.', getTextColor());
     } else if (state.locationStatus == 'disabled') {
-      return ('Location services are disabled.', Colors.red);
+      return (
+        'Location services are disabled. Please enable your location and relaunch app again.',
+        Colors.red
+      );
     } else if (state.locationStatus == 'permission_denied') {
       return ('Location permissions are denied.', Colors.red);
     } else if (state.locationStatus == 'permission_denied_forever') {

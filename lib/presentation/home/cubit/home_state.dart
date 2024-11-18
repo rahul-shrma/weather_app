@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart';
 import 'package:weather_app/data/model/weather_response.dart';
 import 'package:weather_app/data/model/weather_response_error.dart';
 
 class HomeState {
-
   String? locationStatus;
   int theme = 0;
   bool loadingWeatherData = false;
   late TextEditingController cityNameController;
   WeatherResponse? weatherResponse;
   WeatherResponseError? weatherResponseError;
-  Position? currentPosition;
+  LocationData? currentPosition;
 
   HomeState copy(HomeState state) {
     HomeState newState = HomeState();
@@ -24,5 +23,4 @@ class HomeState {
     newState.currentPosition = state.currentPosition;
     return newState;
   }
-
 }

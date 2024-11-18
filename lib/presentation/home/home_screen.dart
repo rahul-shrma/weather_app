@@ -18,11 +18,13 @@ class HomeScreen extends StatelessWidget {
       return BlocConsumer<HomeCubit, HomeState>(
           bloc: cubit,
           listener: (context, state) {
-            if(state.locationStatus == 'permission_granted') {
+            if (state.locationStatus == 'permission_granted') {
               cubit.getLocationDetails();
-            } else if(state.locationStatus == 'success') {
-              if(state.currentPosition != null) {
-                cubit.getWeatherForecast(cityName: "${state.currentPosition!.latitude},${state.currentPosition!.longitude}");
+            } else if (state.locationStatus == 'success') {
+              if (state.currentPosition != null) {
+                cubit.getWeatherForecast(
+                    cityName:
+                        "${state.currentPosition!.latitude},${state.currentPosition!.longitude}");
               } else {
                 cubit.getWeatherForecast(cityName: "Chandigarh");
               }
