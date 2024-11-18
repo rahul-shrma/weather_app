@@ -10,7 +10,9 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = sl<AppCubit>();
-    cubit.startTimer();
+    cubit
+      ..init()
+      ..startTimer();
     return BlocConsumer<AppCubit, AppState>(
         listener: (context, state) {
           if (state.moveToHome) {

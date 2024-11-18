@@ -19,6 +19,7 @@ class HomeScreen extends StatelessWidget {
           bloc: cubit,
           listener: (context, state) {
             if (state.locationStatus == 'permission_granted') {
+              print("Permission granted and getting user location");
               cubit.getLocationDetails();
             } else if (state.locationStatus == 'success') {
               if (state.currentPosition != null) {

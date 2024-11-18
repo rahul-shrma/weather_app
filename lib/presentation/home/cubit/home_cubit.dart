@@ -64,6 +64,7 @@ class HomeCubit extends Cubit<HomeState> {
         return;
       }
     }
+
     state.locationStatus = 'permission_granted';
     emit(state.copy(state));
   }
@@ -76,23 +77,24 @@ class HomeCubit extends Cubit<HomeState> {
         emit(state.copy(state));
       }
     });
-
-    _locationData = await location.getLocation();
-    if (_locationData != null) {
-      state.currentPosition = _locationData;
-      state.locationStatus = 'success';
-      emit(state.copy(state));
-    }
+    Future.delayed(Duration(seconds: 2), () async {
+      _locationData = await location.getLocation();
+      if (_locationData != null) {
+        state.currentPosition = _locationData;
+        state.locationStatus = 'success';
+        emit(state.copy(state));
+      }
+    });
   }
 
   Future<void> getWeatherForecast({String cityName = 'Chandigarh'}) async {
+    if (cityName == '' && state.currentPosition != null) {
+      cityName =
+          "${state.currentPosition!.latitude},${state.currentPosition!.longitude}";
+    }
     state.locationStatus = null;
     state.loadingWeatherData = true;
     emit(state.copy(state));
-
-    if (cityName == '') {
-      cityName = 'Chandigarh';
-    }
     WeatherResponse response =
         await getWeatherUsecase.getWeatherForecast(cityName);
     if (response.error != null) {
